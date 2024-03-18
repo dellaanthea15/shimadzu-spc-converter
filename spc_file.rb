@@ -173,13 +173,13 @@ class SpcFile
   def read_stream(ind, size)
 
     if size <= header[:stream_size_cutoff]
-      full_stream = get_mini_stream_data.split("")
+      full_stream = get_mini_stream_data
       
       short_sector_size = 2**header[:short_sector_size_exp]
 
-      out = []
+      out = ""
       short_stream_list(ind).each do |ssid|
-        out.concat(full_stream[short_sector_size*ssid, short_sector_size])
+        out += full_stream[short_sector_size*ssid, short_sector_size]
       end
       return out
     else
@@ -288,5 +288,21 @@ class SpcFile
       raise 'invalid argument'
     end
   end
-  
+
+  def get_children(node)
+    get_siblings(get_dir(node[:child_id]))
+  end
+
+  def search_path(node, names)
+    curr_node = node
+    names.each do |name|
+      res = search_sibs_strict(get_dir(curr_node[:child_id]), name)
+      if res == nil
+        return nil
+      end
+      curr_node = res
+    end
+    return curr_node
+  end
 end
+

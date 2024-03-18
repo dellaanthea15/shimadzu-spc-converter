@@ -1,24 +1,30 @@
+require 'csv'
 require_relative 'spc_file.rb'
 
 spc = SpcFile.new(ARGV[0])
 
-puts "========================"
-puts ARGV[0]
+basename = File.basename(ARGV[0], '.*')
+dir = File.dirname(ARGV[0])
 
-puts spc.header
-puts spc.sat_sids.to_s
+root = spc.get_dir(0)
+spc.search_sibs(spc.get_dir(root[:child_id]), /DataStorage[0-9]+/).each do |ds|
+  dsg = spc.search_path(ds, ['DataSetGroup'])
+  datasets = spc.search_sibs(spc.get_dir(dsg[:child_id]), /DataSet[0-9]+/)
 
-#puts spc.get_dir(804)
-#spc.print_tree
-#nodes = spc.all_nodes
-#root_node = spc.get_dir(1)
+  datasets.each do |dataset|
+    xdata = spc.search_path(dataset, ['DataSpectrumStorage', 'Data', 'X Data.1'])
+    ydata = spc.search_path(dataset, ['DataSpectrumStorage', 'Data', 'Y Data.1'])
 
+    xvals = spc.read_stream(xdata[:sid], xdata[:size]).unpack('d*')
+    yvals = spc.read_stream(ydata[:sid], ydata[:size]).unpack('d*')
 
-#puts spc.search_sibs(root_node, "DataStorageHeaderInfo")
-
-puts spc.read_stream(10222, 400008).unpack('d*')
-
-#nodes.select{|x| x[:name] == "PageTexts0"}.each do |node|
-#  puts spc.read_stream(node[:sid], node[:size]).select{|x| x!= "\x00"}.join
-#end
-
+    fname = File.join(dir, "#{basename}_#{ds[:name]}_#{dataset[:name]}.csv")
+    puts fname
+    CSV.open(fname, 'wb') do |csv|
+      csv << ['wl', 'abs']
+      xvals.zip(yvals).each do |row|
+        csv << row
+      end
+    end
+  end
+end
